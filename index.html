@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StudyTime - Task Alarm</title>
+<link rel="manifest" href="manifest.json">
+<style>
+  /* --- WHITE & PINK PASTEL THEME --- */
+  body {
+    font-family: 'Poppins', sans-serif;
+    background: #fff;
+    color: #ff2b9c;
+    margin: 0;
+    padding: 0;
+  }
+
+  h1 {
+    text-align: center;
+    margin: 20px 0;
+    color: #ff2b9c;
+    text-shadow: 1px 1px 5px #ffb6c1;
+  }
+
+  .container {
+    max-width: 500px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+
+  input, button, select {
+    padding: 10px;
+    margin: 5px 0;
+    border-radius: 8px;
+    border: 1px solid #ffb6c1;
+    font-size: 16px;
+    outline: none;
+  }
+
+  input, select {
+    width: 100%;
+  }
+
+  button {
+    width: 100%;
+    background: #ff2b9c;
+    color: #fff;
+    cursor: pointer;
+    transition: 0.3s;
+    font-weight: 600;
+  }
+
+  button:hover {
+    background: #ff4da6;
+    transform: scale(1.02);
+  }
+
+  ul { list-style: none; padding: 0; }
+
+  li {
+    background: #ffe6f0;
+    padding: 12px;
+    margin: 8px 0;
+    border-radius: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border: 1px solid #ffb6c1;
+    transition: 0.3s;
+    color: #ff2b9c;
+  }
+
+  li:hover { box-shadow: 0 0 10px #ffb6c1; }
+
+  .task-buttons button {
+    width: auto;
+    margin-left: 5px;
+    padding: 6px 10px;
+    font-size: 14px;
+    border-radius: 6px;
+  }
+
+  .task-buttons button.complete {
+    background: #ff2b9c;
+    color: #fff;
+  }
+
+  .task-buttons button.delete {
+    background: #ffc0cb;
+    color: #fff;
+  }
+
+</style>
+</head>
+<body>
+
+<h1>StudyTime</h1>
+
+<div class="container">
+  <input type="text" id="taskInput" placeholder="Enter Task Name">
+  <input type="time" id="taskTime">
+  <button id="addTaskBtn">Add Task & Alarm ⏰</button>
+
+  <ul id="taskList"></ul>
+</div>
+
+<script>
+  // --- Local Storage + Task Management ---
+  const taskInput = document.getElementById('taskInput');
+  const taskTime = document.getElementById('taskTime');
+  const addTaskBtn = document.getElementById('addTaskBtn');
+  const taskList = document.getElementById('taskList');
+
+  let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+
+  function saveTasks() {
+    localStorage.setItem('tasks', JSON.stringify(tasks));
+  }
+
+  function renderTasks() {
+    taskList.innerHTML = '';
+    tasks.forEach((task, index) => {
+      const li = document.createElement('li');
+      li.innerHTML = `
+        <span>${task.name} - ${task.time}</span>
+        <div class="task-buttons">
+          <button class="complete">✅ Done</button>
+          <button class="delete">🗑️</button>
+        </div>
+      `;
+      taskList.appendChild(li);
+
+      li.querySelector('.complete').onclick = () => {
+        alert(`Task "${task.name}" completed! 🎉`);
+        tasks.splice(index, 1);
+        saveTasks();
+        renderTasks();
+      };
+
+      li.querySelector('.delete').onclick = () => {
+        tasks.splice(index, 1);
+        saveTasks();
+        renderTasks();
+      };
+    });
+  }
+
+  addTaskBtn.onclick = () => {
+    if (!taskInput.value || !taskTime.value) {
+      alert('Please enter task name and time');
+      return;
+    }
+
+    const newTask = { name: taskInput.value, time: taskTime.value };
+    tasks.push(newTask);
+    saveTasks();
+    renderTasks();
+    taskInput.value = '';
+    taskTime.value = '';
+
+    // Schedule Notification
+    scheduleAlarm(newTask);
+  };
+
+  function scheduleAlarm(task) {
+    const now = new Date();
+    const [hours, minutes] = task.time.split(':');
+    const alarmTime = new Date();
+    alarmTime.setHours(hours, minutes, 0, 0);
+
+    if (alarmTime < now) alarmTime.setDate(alarmTime.getDate() + 1);
+
+    const timeout = alarmTime - now;
+
+    setTimeout(() => {
+      if (Notification.permission === 'granted') {
+        new Notification('StudyTime Reminder ⏰', {
+          body: `Time for: ${task.name}`,
+        });
+      } else {
+        alert(`Time for: ${task.name}`);
+      }
+    }, timeout);
+  }
+
+  // Request Notification Permission
+  if (Notification.permission !== 'granted') {
+    Notification.requestPermission();
+  }
+
+  // Load saved tasks
+  renderTasks();
+</script>
+<button id="installBtn" style="background:#ff2b9c;color:#fff;padding:10px 20px;border:none;border-radius:8px;cursor:pointer;margin:10px 0;font-weight:600;">Install StudyTime App</button>
+
+<script>
+let deferredPrompt;
+const installBtn = document.getElementById('installBtn');
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  installBtn.style.display = 'block';
+});
+
+installBtn.addEventListener('click', async () => {
+  if (deferredPrompt) {
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      console.log('App installed!');
+    }
+    deferredPrompt = null;
+    installBtn.style.display = 'none';
+  }
+});
+</script>
+</body>
+</html>
